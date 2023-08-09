@@ -1,30 +1,31 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using UserManagement.DBContexts;
 using UserManagement.Models;
 
 namespace UserManagement.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class UserManagementController : ControllerBase
     {
         private readonly ILogger<UserManagementController> _logger;
+        private readonly UserManagementDBContext _dbContext;
 
-        public UserManagementController(ILogger<UserManagementController> logger)
+        public UserManagementController(ILogger<UserManagementController> logger, UserManagementDBContext context)
         {
             _logger = logger;
+            _dbContext = context;
         }
 
-        [HttpGet]
-        public IActionResult Get()
+        [HttpPost("GetUser")]
+        public IActionResult GetUser([FromBody] GetUserRequest request)
         {
-            UserManagementModel umm = new UserManagementModel();
+            UserManagementModel umm = new UserManagementModel(_dbContext);
 
-            return Ok();
+            var result = umm.GetUser(request);
+
+            return Ok(result);
         }
     }
 }

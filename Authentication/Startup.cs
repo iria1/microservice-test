@@ -1,4 +1,4 @@
-using EFCoreMySQL.DBContexts;
+using Authentication.DBContexts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +21,7 @@ namespace Authentication
         public void ConfigureServices(IServiceCollection services)
         {
             string mySqlConnectionStr = Configuration.GetConnectionString("DefaultConnection");
-            services.AddDbContextPool<MyDBContext>(options => options.UseMySql(mySqlConnectionStr, ServerVersion.AutoDetect(mySqlConnectionStr)));
+            services.AddDbContextPool<AuthenticationDBContext>(options => options.UseMySql(mySqlConnectionStr, ServerVersion.AutoDetect(mySqlConnectionStr)));
 
             services.AddControllers();
         }

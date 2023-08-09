@@ -1,24 +1,51 @@
-using EFCoreMySQL.DBContexts;
+using Authentication.DBContexts;
 using System.Collections.Generic;
 using System.Linq;
+using System;
+using Microsoft.EntityFrameworkCore;
 
 namespace Authentication.Models
 {
     public class AuthenticationModel
     {
-        private readonly MyDBContext myDbContext;
+        private readonly AuthenticationDBContext _dbContext;
 
-        public AuthenticationModel(MyDBContext context)
+        public AuthenticationModel(AuthenticationDBContext context)
         {
-            myDbContext = context;
+            _dbContext = context;
         }
 
-        public List<MasterAuth> Authenticate(AuthenticateRequest request)
+        public List<AuthenticateResponse> Authenticate(AuthenticateRequest request)
         {
-            return myDbContext.MasterAuth
+            return _dbContext.MasterAuth
                 .Where(a => a.username == request.Username)
                 .Where(b => b.password == request.Password)
+                .Select(a => new AuthenticateResponse{ user_id = a.user_id })
                 .ToList();
+        }
+
+        public CreateNewResponse CreateNew(CreateNewRequest request)
+        {
+            try
+            {
+                _dbContext.MasterAuth
+                .Add(new MasterAuth
+                {
+                    user_id = request.UserId,
+                    username = request.Username,
+                    password = request.Password
+                });
+
+                _dbContext.SaveChanges();
+
+                return new CreateNewResponse { message = "success" };
+            }
+            catch
+            {
+                
+            }
+
+            return new CreateNewResponse { message = "failed" };
         }
     }
 }

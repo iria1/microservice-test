@@ -1,5 +1,5 @@
 ﻿using Authentication.Models;
-using EFCoreMySQL.DBContexts;
+using Authentication.DBContexts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -10,22 +10,32 @@ namespace Authentication.Controllers
     public class AuthenticationController : ControllerBase
     {
         private readonly ILogger<AuthenticationController> _logger;
-        private readonly MyDBContext myDbContext;
+        private readonly AuthenticationDBContext _dbContext;
 
-        public AuthenticationController(ILogger<AuthenticationController> logger, MyDBContext context)
+        public AuthenticationController(ILogger<AuthenticationController> logger, AuthenticationDBContext context)
         {
-            myDbContext = context;
+            _dbContext = context;
             _logger = logger;
         }
 
         [HttpPost("Authenticate")]
         public IActionResult Authenticate([FromBody] AuthenticateRequest request)
         {
-            AuthenticationModel am = new AuthenticationModel(myDbContext);
+            AuthenticationModel am = new AuthenticationModel(_dbContext);
 
             var result = am.Authenticate(request);
 
             return Ok(result);
+        }
+
+        [HttpPost("CreateNew")]
+        public IActionResult CreateNew([FromBody] CreateNewRequest request)
+        {
+            AuthenticationModel am = new AuthenticationModel(_dbContext);
+
+            am.CreateNew(request);
+
+            return Ok();
         }
     }
 }
