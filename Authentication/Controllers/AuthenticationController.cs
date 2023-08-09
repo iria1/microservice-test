@@ -1,6 +1,8 @@
-﻿using Authentication.Models;
-using Authentication.DBContexts;
+﻿using Authentication.DBContexts;
+using Authentication.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Authentication.Controllers
@@ -11,17 +13,21 @@ namespace Authentication.Controllers
     {
         private readonly ILogger<AuthenticationController> _logger;
         private readonly AuthenticationDBContext _dbContext;
+        private readonly IConfiguration _configuration;
 
-        public AuthenticationController(ILogger<AuthenticationController> logger, AuthenticationDBContext context)
+
+        public AuthenticationController(IConfiguration configuration, ILogger<AuthenticationController> logger, AuthenticationDBContext context)
         {
+            _configuration = configuration;
             _dbContext = context;
             _logger = logger;
         }
 
         [HttpPost("Authenticate")]
+        [AllowAnonymous]
         public IActionResult Authenticate([FromBody] AuthenticateRequest request)
         {
-            AuthenticationModel am = new AuthenticationModel(_dbContext);
+            AuthenticationModel am = new AuthenticationModel(_configuration, _dbContext);
 
             var result = am.Authenticate(request);
 
@@ -29,9 +35,10 @@ namespace Authentication.Controllers
         }
 
         [HttpPost("CreateNew")]
+        [AllowAnonymous]
         public IActionResult CreateNew([FromBody] CreateNewRequest request)
         {
-            AuthenticationModel am = new AuthenticationModel(_dbContext);
+            AuthenticationModel am = new AuthenticationModel(_configuration, _dbContext);
 
             var result = am.CreateNew(request);
 

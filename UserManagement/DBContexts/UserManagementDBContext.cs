@@ -1,5 +1,6 @@
-﻿using UserManagement.Models;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
+using UserManagement.Models;
 
 namespace UserManagement.DBContexts
 {
@@ -24,11 +25,11 @@ namespace UserManagement.DBContexts
             // Configure columns  
             modelBuilder.Entity<MasterUser>().Property(ma => ma.id).HasColumnType("bigint(20)").UseMySqlIdentityColumn().IsRequired();
             modelBuilder.Entity<MasterUser>().Property(ma => ma.fullname).HasColumnType("varchar(100)").IsRequired();
-            modelBuilder.Entity<MasterUser>().Property(ma => ma.created_by).HasColumnType("varchar(100)").IsRequired();
-            modelBuilder.Entity<MasterUser>().Property(ma => ma.created_date).HasColumnType("datetime").IsRequired();
+            modelBuilder.Entity<MasterUser>().Property(ma => ma.created_by).HasColumnType("varchar(100)").HasDefaultValue("system").IsRequired();
+            modelBuilder.Entity<MasterUser>().Property(ma => ma.created_date).HasColumnType("datetime").HasDefaultValue(DateTime.Now).IsRequired();
             modelBuilder.Entity<MasterUser>().Property(ma => ma.modified_by).HasColumnType("varchar(100)").IsRequired(false);
             modelBuilder.Entity<MasterUser>().Property(ma => ma.modified_date).HasColumnType("datetime").IsRequired(false);
-            modelBuilder.Entity<MasterUser>().Property(ma => ma.is_active).HasColumnType("tinyint(1)").IsRequired();
+            modelBuilder.Entity<MasterUser>().Property(ma => ma.is_active).HasColumnType("tinyint(1)").HasDefaultValue(1).IsRequired();
         }
     }
 }
