@@ -33,9 +33,9 @@ namespace Authentication.Controllers
         {
             AuthenticationModel am = new AuthenticationModel(_dbContext);
 
-            am.CreateNew(request);
+            var result = am.CreateNew(request);
 
-            return Ok();
+            return Ok(result);
         }
     }
 }

@@ -29,23 +29,21 @@ namespace Authentication.Models
             try
             {
                 _dbContext.MasterAuth
-                .Add(new MasterAuth
-                {
-                    user_id = request.UserId,
-                    username = request.Username,
-                    password = request.Password
-                });
+                    .Add(new MasterAuth
+                    {
+                        user_id = request.UserId,
+                        username = request.Username,
+                        password = request.Password
+                    });
 
                 _dbContext.SaveChanges();
 
                 return new CreateNewResponse { message = "success" };
             }
-            catch
+            catch (DbUpdateException ex)
             {
-                
+                return new CreateNewResponse { message = ex.InnerException.Message };
             }
-
-            return new CreateNewResponse { message = "failed" };
         }
     }
 }
