@@ -30,7 +30,21 @@ namespace Authentication.Controllers
 
             var result = am.Authenticate(request);
 
-            return Ok(result);
+            if (result != null)
+            {
+                if (result.token != null)
+                {
+                    return Ok(result);
+                }
+                else
+                {
+                    return StatusCode(401, new { message = "Wrong username/password combination." });
+                }
+            }
+            else
+            {
+                return StatusCode(500, new { message = "An unexpected error occurred. Please contact administrator." });
+            }
         }
 
         [HttpPost("CreateNew")]

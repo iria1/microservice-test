@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
@@ -23,38 +22,36 @@ namespace Authentication.Models
             _dbContext = context;
         }
 
-        public object Authenticate(AuthenticateRequest request)
+        public AuthenticateResponse Authenticate(AuthenticateRequest request)
         {
             try
             {
-                var retrieveSalt = _dbContext.MasterAuth
-                .Where(a => a.username == request.Username)
-                .Select(a => new { salt = a.pw_salt })
-                .FirstOrDefault();
-
-                if (retrieveSalt == null) return new AuthenticateResponse { token = null };
-
-                var saltedPW = request.Password + retrieveSalt.salt;
-
-                var hashedPW = ComputeSha256Hash(saltedPW);
-
-                List<GetMasterAuthInfo> ar = _dbContext.MasterAuth
+                var pwSalt = _dbContext.MasterAuth
                     .Where(a => a.username == request.Username)
-                    .Where(b => b.password == hashedPW)
+                    .Select(a => a.pw_salt )
+                    .FirstOrDefault();
+
+                if (pwSalt == null) return new AuthenticateResponse { token = null };
+
+                var hashedPw = ComputeSha256Hash(request.Password + pwSalt);
+
+                GetMasterAuthInfo gmai = _dbContext.MasterAuth
+                    .Where(a => a.username == request.Username)
+                    .Where(b => b.password == hashedPw)
                     .Select(a => new GetMasterAuthInfo { user_id = a.user_id })
-                    .ToList();
+                    .FirstOrDefault();
 
                 string jwt = null;
-                if (ar.Count > 0)
+                if (gmai != null)
                 {
-                    jwt = GenerateToken(ar[0].user_id.ToString());
+                    jwt = GenerateToken(gmai.user_id.ToString());
                 }
 
                 return new AuthenticateResponse { token = jwt };
             }
-            catch (Exception ex)
+            catch
             {
-                return new { message = ex.Message };
+                return null;
             }
         }
 
