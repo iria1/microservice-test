@@ -15,4 +15,18 @@
 
         public string Password { get; set; }
     }
+
+    public class ChangePasswordRequest
+    {
+        public long UserId { get; set; }
+
+        public string OldPassword { get; set; }
+
+        public string NewPassword { get; set; }
+    }
+
+    public class DeleteAccountRequest
+    {
+        public long UserId { get; set; }
+    }
 }

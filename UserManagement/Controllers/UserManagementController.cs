@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using UserManagement.DBContexts;
 using UserManagement.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace UserManagement.Controllers
 {
@@ -14,11 +15,13 @@ namespace UserManagement.Controllers
     {
         private readonly ILogger<UserManagementController> _logger;
         private readonly UserManagementDBContext _dbContext;
+        private readonly IConfiguration _configuration; 
 
-        public UserManagementController(ILogger<UserManagementController> logger, UserManagementDBContext context)
+        public UserManagementController(ILogger<UserManagementController> logger, UserManagementDBContext context, IConfiguration configuration)
         {
             _logger = logger;
             _dbContext = context;
+            _configuration = configuration;
         }
 
         [HttpGet("GetUser")]
@@ -26,16 +29,11 @@ namespace UserManagement.Controllers
         public IActionResult GetUser()
         {
             string uidString = null;
-
-            var identity = HttpContext.User.Identity as ClaimsIdentity;
-            if (identity != null)
-            {
-                uidString = identity.FindFirst("userId").Value;
-            }
-
+            if (HttpContext.User.Identity is ClaimsIdentity identity) uidString = identity.FindFirst("userId").Value;
             var tpRes = long.TryParse(uidString, out long userId);
+            if (!tpRes) return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
 
-            UserManagementModel umm = new UserManagementModel(_dbContext);
+            UserManagementModel umm = new UserManagementModel(_dbContext, _configuration);
 
             var result = umm.GetUser(new GetUserRequest { Id = userId });
 
@@ -46,9 +44,48 @@ namespace UserManagement.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
         {
-            UserManagementModel umm = new UserManagementModel(_dbContext);
+            UserManagementModel umm = new UserManagementModel(_dbContext, _configuration);
 
             var result = await umm.CreateUser(request);
+
+            return Ok(result);
+        }
+
+        [HttpPost("ModifyUser")]
+        [Authorize]
+        public IActionResult ModifyUser([FromBody] ModifyUserRequest request)
+        {
+            string uidString = null;
+            if (HttpContext.User.Identity is ClaimsIdentity identity) uidString = identity.FindFirst("userId").Value;
+            var tpRes = long.TryParse(uidString, out long userId);
+            if (!tpRes) return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
+
+            request.UserId = userId;
+
+            UserManagementModel umm = new UserManagementModel(_dbContext, _configuration);
+
+            var result = umm.ModifyUser(request);
+
+            return Ok(result);
+        }
+
+        [HttpDelete("DeleteUser")]
+        [Authorize]
+        public async Task<IActionResult> DeleteUser()
+        {
+            string uidString = null;
+            if (HttpContext.User.Identity is ClaimsIdentity identity) uidString = identity.FindFirst("userId").Value;
+            var tpRes = long.TryParse(uidString, out long userId);
+            if (!tpRes) return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
+
+            DeleteUserRequest request = new DeleteUserRequest()
+            {
+                UserId = userId
+            };
+
+            UserManagementModel umm = new UserManagementModel(_dbContext, _configuration);
+
+            var result = await umm.DeleteUser(request);
 
             return Ok(result);
         }

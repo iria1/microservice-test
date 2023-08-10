@@ -13,4 +13,16 @@
 
         public string Password { get; set; }
     }
+
+    public class ModifyUserRequest
+    {
+        public long UserId { get; set; }
+
+        public string Fullname { get; set; }
+    }
+
+    public class DeleteUserRequest
+    {
+        public long UserId { get; set; }
+    }
 }

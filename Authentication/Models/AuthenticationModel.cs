@@ -35,16 +35,15 @@ namespace Authentication.Models
 
                 var hashedPw = ComputeSha256Hash(request.Password + pwSalt);
 
-                GetMasterAuthInfo gmai = _dbContext.MasterAuth
+                MasterAuth ma = _dbContext.MasterAuth
                     .Where(a => a.username == request.Username)
                     .Where(b => b.password == hashedPw)
-                    .Select(a => new GetMasterAuthInfo { user_id = a.user_id })
                     .FirstOrDefault();
 
                 string jwt = null;
-                if (gmai != null)
+                if (ma != null)
                 {
-                    jwt = GenerateToken(gmai.user_id.ToString());
+                    jwt = GenerateToken(ma.user_id.ToString());
                 }
 
                 return new AuthenticateResponse { token = jwt };
@@ -79,6 +78,71 @@ namespace Authentication.Models
             catch (DbUpdateException ex)
             {
                 return new CreateNewResponse { message = ex.InnerException.Message };
+            }
+        }
+
+        public object ChangePassword(ChangePasswordRequest request)
+        {
+            try
+            {
+                // confirm that this user owns the account
+
+                var pwSalt = _dbContext.MasterAuth
+                    .Where(a => a.user_id == request.UserId)
+                    .Select(a => a.pw_salt)
+                    .FirstOrDefault();
+
+                if (pwSalt == null) return new { message = "Failed to update password" };
+
+                var hashedPw = ComputeSha256Hash(request.OldPassword + pwSalt);
+
+                MasterAuth foo = _dbContext.MasterAuth
+                    .Where(a => a.user_id == request.UserId)
+                    .Where(b => b.password == hashedPw)
+                    .FirstOrDefault();
+
+                if (foo == null) return new { message = "Failed to update password" };
+
+                // change the password to a new one
+
+                Guid g = Guid.NewGuid();
+                var newHashedPw = ComputeSha256Hash(request.NewPassword + g.ToString());
+
+                foo.password = newHashedPw;
+                foo.pw_salt = g.ToString();
+                foo.modified_by = request.UserId.ToString();
+                foo.modified_date = DateTime.Now;
+                _dbContext.SaveChanges();
+
+                return new { message = "success" };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public object DeleteAccount(DeleteAccountRequest request)
+        {
+            try
+            {
+                var userId = request.UserId;
+
+                var acctToBeDelete = _dbContext.MasterAuth
+                    .Where(a => a.user_id == userId)
+                    .FirstOrDefault();
+
+                if (acctToBeDelete == null) return null;
+
+                _dbContext.MasterAuth.Remove(acctToBeDelete);
+
+                _dbContext.SaveChanges();
+
+                return new { message = "successfully deleted account" };
+            }
+            catch
+            {
+                return null;
             }
         }
 
