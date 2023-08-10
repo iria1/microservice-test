@@ -12,6 +12,8 @@ namespace Authentication.Models
 
         public string password { get; set; }
 
+        public string pw_salt { get; set; }
+
         public string created_by { get; set; }
 
         public DateTime created_date { get; set; }

@@ -15,7 +15,6 @@ namespace Authentication.Controllers
         private readonly AuthenticationDBContext _dbContext;
         private readonly IConfiguration _configuration;
 
-
         public AuthenticationController(IConfiguration configuration, ILogger<AuthenticationController> logger, AuthenticationDBContext context)
         {
             _configuration = configuration;
