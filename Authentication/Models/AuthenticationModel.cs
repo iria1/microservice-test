@@ -1,5 +1,5 @@
 using Authentication.DBContexts;
-using Microsoft.EntityFrameworkCore;
+using CommonClass;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -8,30 +8,33 @@ using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Authentication.Models
 {
     public class AuthenticationModel
     {
+        private readonly ILogger _logger;
         private readonly AuthenticationDBContext _dbContext;
         private readonly IConfiguration _configuration;
 
-        public AuthenticationModel(IConfiguration configuration, AuthenticationDBContext context)
+        public AuthenticationModel(ILogger logger, IConfiguration configuration, AuthenticationDBContext context)
         {
+            _logger = logger;
             _configuration = configuration;
             _dbContext = context;
         }
 
-        public AuthenticateResponse Authenticate(AuthenticateRequest request)
+        public CommonResponse<AuthenticateResponse> Authenticate(AuthenticateRequest request)
         {
             try
             {
                 var pwSalt = _dbContext.MasterAuth
                     .Where(a => a.username == request.Username)
-                    .Select(a => a.pw_salt )
+                    .Select(a => a.pw_salt)
                     .FirstOrDefault();
 
-                if (pwSalt == null) return new AuthenticateResponse { token = null };
+                if (pwSalt == null) return new CommonResponse<AuthenticateResponse>(null, "Wrong username/password combination.", false);
 
                 var hashedPw = ComputeSha256Hash(request.Password + pwSalt);
 
@@ -40,21 +43,25 @@ namespace Authentication.Models
                     .Where(b => b.password == hashedPw)
                     .FirstOrDefault();
 
-                string jwt = null;
                 if (ma != null)
                 {
-                    jwt = GenerateToken(ma.user_id.ToString());
+                    string jwt = GenerateToken(ma.user_id.ToString());
+                    return new CommonResponse<AuthenticateResponse>(new AuthenticateResponse { token = jwt }, null, true);
                 }
-
-                return new AuthenticateResponse { token = jwt };
+                else
+                {
+                    return new CommonResponse<AuthenticateResponse>(null, "Wrong username/password combination.", false);
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                _logger.LogCritical(ex.Message);
+
+                return new CommonResponse<AuthenticateResponse>(null, "An unexpected error occurred. Please contact administrator.", false);
             }
         }
 
-        public CreateNewResponse CreateNew(CreateNewRequest request)
+        public CommonResponse<object> CreateNew(CreateNewRequest request)
         {
             try
             {
@@ -73,15 +80,16 @@ namespace Authentication.Models
 
                 _dbContext.SaveChanges();
 
-                return new CreateNewResponse { message = "success" };
+                return new CommonResponse<object>(null, null, true);
             }
-            catch (DbUpdateException ex)
+            catch (Exception ex)
             {
-                return new CreateNewResponse { message = ex.InnerException.Message };
+                _logger.LogCritical(ex.Message);
+                return new CommonResponse<object>(null, "An unexpected error occurred. Please contact administrator.", false);
             }
         }
 
-        public object ChangePassword(ChangePasswordRequest request)
+        public CommonResponse<object> ChangePassword(ChangePasswordRequest request)
         {
             try
             {
@@ -92,7 +100,7 @@ namespace Authentication.Models
                     .Select(a => a.pw_salt)
                     .FirstOrDefault();
 
-                if (pwSalt == null) return new { message = "Failed to update password" };
+                if (pwSalt == null) return new CommonResponse<object>(null, "UserId not found. Failed to update password.", false);
 
                 var hashedPw = ComputeSha256Hash(request.OldPassword + pwSalt);
 
@@ -101,7 +109,7 @@ namespace Authentication.Models
                     .Where(b => b.password == hashedPw)
                     .FirstOrDefault();
 
-                if (foo == null) return new { message = "Failed to update password" };
+                if (foo == null) return new CommonResponse<object>(null, "Incorrect password. Failed to update password.", false);
 
                 // change the password to a new one
 
@@ -114,15 +122,17 @@ namespace Authentication.Models
                 foo.modified_date = DateTime.Now;
                 _dbContext.SaveChanges();
 
-                return new { message = "success" };
+                return new CommonResponse<object>(null, null, true);
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                _logger.LogCritical(ex.Message);
+
+                return new CommonResponse<object>(null, "An unexpected error occurred. Please contact administrator.", false);
             }
         }
 
-        public object DeleteAccount(DeleteAccountRequest request)
+        public CommonResponse<object> DeleteAccount(DeleteAccountRequest request)
         {
             try
             {
@@ -138,11 +148,13 @@ namespace Authentication.Models
 
                 _dbContext.SaveChanges();
 
-                return new { message = "successfully deleted account" };
+                return new CommonResponse<object>(null, null, true);
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                _logger.LogCritical(ex.Message);
+
+                return new CommonResponse<object>(null, "An unexpected error occurred. Please contact administrator.", false);
             }
         }
 

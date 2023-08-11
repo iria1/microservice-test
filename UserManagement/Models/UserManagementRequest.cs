@@ -20,9 +20,4 @@
 
         public string Fullname { get; set; }
     }
-
-    public class DeleteUserRequest
-    {
-        public long UserId { get; set; }
-    }
 }

@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
-using UserManagement.Models;
 
 namespace UserManagement.DBContexts
 {
@@ -31,5 +30,22 @@ namespace UserManagement.DBContexts
             modelBuilder.Entity<MasterUser>().Property(ma => ma.modified_date).HasColumnType("datetime").IsRequired(false);
             modelBuilder.Entity<MasterUser>().Property(ma => ma.is_active).HasColumnType("tinyint(1)").HasDefaultValue(1).IsRequired();
         }
+    }
+
+    public class MasterUser
+    {
+        public long id { get; set; }
+
+        public string fullname { get; set; }
+
+        public string created_by { get; set; }
+
+        public DateTime created_date { get; set; }
+
+        public string modified_by { get; set; }
+
+        public DateTime? modified_date { get; set; }
+
+        public bool is_active { get; set; }
     }
 }

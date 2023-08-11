@@ -1,32 +1,53 @@
+using CommonClass;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using RestSharp;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UserManagement.DBContexts;
-using Microsoft.Extensions.Configuration;
 
 namespace UserManagement.Models
 {
     public class UserManagementModel
     {
+        private readonly ILogger _logger;
         private readonly UserManagementDBContext _dbContext;
         private readonly IConfiguration _configuration;
 
-        public UserManagementModel(UserManagementDBContext context, IConfiguration configuration)
+        public UserManagementModel(ILogger logger, UserManagementDBContext context, IConfiguration configuration)
         {
+            _logger = logger;
             _dbContext = context;
             _configuration = configuration;
         }
 
-        public List<MasterUser> GetUser(GetUserRequest request)
+        public CommonResponse<MasterUser> GetUser(GetUserRequest request)
         {
-            return _dbContext.MasterUser
-                .Where(a => a.id == request.Id)
-                .ToList();
+            try
+            {
+                MasterUser mu = _dbContext.MasterUser
+                    .Where(a => a.id == request.Id)
+                    .FirstOrDefault();
+
+                if (mu != null)
+                {
+                    return new CommonResponse<MasterUser>(mu, null, true);
+                }
+                else
+                {
+                    return new CommonResponse<MasterUser>(null, "UserId not found.", false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ex.Message);
+
+                return new CommonResponse<MasterUser>(null, "An unexpected error occurred. Please contact administrator.", true);
+            }
         }
 
-        public async Task<CreateUserResponse> CreateUser(CreateUserRequest request)
+        public async Task<CommonResponse<object>> CreateUser(CreateUserRequest request)
         {
             MasterUser newUser = new MasterUser
             {
@@ -38,44 +59,30 @@ namespace UserManagement.Models
                 _dbContext.MasterUser.Add(newUser);
                 _dbContext.SaveChanges();
 
-                var options = new RestClientOptions("https://localhost:5001/api")
-                {
-                    RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true
-                };
+                var response = await RestApiCall("POST", "https://localhost:5001/api", "Authentication/CreateNew", new { UserId = newUser.id, Username = request.Username, Password = request.Password }, true);
 
-                var client = new RestClient(options);
-
-                var restreq = new RestRequest("Authentication/CreateNew")
-                    .AddJsonBody(new
-                    {
-                        UserId = newUser.id,
-                        Username = request.Username,
-                        Password = request.Password
-                    })
-                    .AddHeader("x-api-key", _configuration["apiKey"]);
-
-                var response = await client.PostAsync<Foo>(restreq);
-
-                if (response.message != "success")
+                if (response.IsSuccess == false)
                 {
                     _dbContext.MasterUser.Remove(newUser);
                     _dbContext.SaveChanges();
 
-                    return new CreateUserResponse { message = "failed to create login details: " + response.message };
+                    return new CommonResponse<object>(null, "Failed to create login details: " + response.Message, false);
                 }
 
-                return new CreateUserResponse { message = "success" };
+                return new CommonResponse<object>(null, null, true);
             }
             catch (Exception ex)
             {
                 _dbContext.MasterUser.Remove(newUser);
                 _dbContext.SaveChanges();
 
-                return new CreateUserResponse { message = ex.Message };
+                _logger.LogCritical(ex.Message);
+
+                return new CommonResponse<object>(null, "An unexpected error occurred. Please contact administrator.", false);
             }
         }
 
-        public object ModifyUser(ModifyUserRequest request)
+        public CommonResponse<object> ModifyUser(ModifyUserRequest request)
         {
             try
             {
@@ -83,7 +90,7 @@ namespace UserManagement.Models
                     .Where(a => a.id == request.UserId)
                     .FirstOrDefault();
 
-                if (mu == null) return new { message = "failed" };
+                if (mu == null) return new CommonResponse<object>(null, "UserId not found.", false);
 
                 mu.fullname = request.Fullname;
                 mu.modified_by = request.UserId.ToString();
@@ -91,51 +98,94 @@ namespace UserManagement.Models
 
                 _dbContext.SaveChanges();
 
-                return new { message = "success" };
+                return new CommonResponse<object>(null, null, true);
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                _logger.LogCritical(ex.Message);
+
+                return new CommonResponse<object>(null, "An unexpected error occurred. Please contact administrator.", false);
             }
         }
 
-        public async Task<object> DeleteUser(DeleteUserRequest request)
+        public async Task<CommonResponse<object>> DeleteUser(long userId)
         {
             try
             {
-                var options = new RestClientOptions("https://localhost:5001/api")
+                var response = await RestApiCall("DELETE", "https://localhost:5001/api", "Authentication/DeleteAccount", new { UserId = userId }, true);
+
+                if (response.IsSuccess == false) return new CommonResponse<object>(null, "Failed to delete login details: " + response.Message, false);
+
+                MasterUser mu = _dbContext.MasterUser
+                    .Where(a => a.id == userId)
+                    .FirstOrDefault();
+
+                if (mu == null) return new CommonResponse<object>(null, "Failed", false);
+
+                _dbContext.MasterUser.Remove(mu);
+
+                _dbContext.SaveChanges();
+
+                return new CommonResponse<object>(null, null, true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ex.Message);
+
+                return new CommonResponse<object>(null, "An unexpected error occurred. Please contact administrator.", false);
+            }
+        }
+
+        private async Task<CommonResponse<object>> RestApiCall(string verb, string uri1, string uri2, object jsonBody, bool addApiKey)
+        {
+            CommonResponse<object> response = new CommonResponse<object>(null, "An unexpected error occurred. Please contact administrator.", false);
+
+            try
+            {
+                var options = new RestClientOptions(uri1)
                 {
                     RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true
                 };
 
                 var client = new RestClient(options);
 
-                var restreq = new RestRequest("Authentication/DeleteAccount")
-                    .AddJsonBody(new
-                    {
-                        UserId = request.UserId
-                    })
-                    .AddHeader("x-api-key", _configuration["apiKey"]);
+                var restreq = new RestRequest(uri2);
 
-                var response = await client.DeleteAsync<Foo>(restreq);
+                if (jsonBody != null)
+                {
+                    restreq.AddJsonBody(jsonBody);
+                }
 
-                if (response == null) return new { message = "failed" };
+                if (addApiKey)
+                {
+                    restreq.AddHeader("x-api-key", _configuration["apiKey"]);
+                }
 
-                MasterUser mu = _dbContext.MasterUser
-                    .Where(a => a.id == request.UserId)
-                    .FirstOrDefault();
+                switch (verb)
+                {
+                    case "GET":
+                        response = await client.GetAsync<CommonResponse<object>>(restreq);
+                        break;
+                    case "POST":
+                        response = await client.PostAsync<CommonResponse<object>>(restreq);
+                        break;
+                    case "PUT":
+                        response = await client.PutAsync<CommonResponse<object>>(restreq);
+                        break;
+                    case "DELETE":
+                        response = await client.DeleteAsync<CommonResponse<object>>(restreq);
+                        break;
+                    default:
+                        break;
+                }
 
-                if (mu == null) return new { message = "failed" };
-
-                _dbContext.MasterUser.Remove(mu);
-
-                _dbContext.SaveChanges();
-
-                return new { message = "success" };
+                return response;
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                _logger.LogCritical(ex.Message);
+
+                return response;
             }
         }
     }

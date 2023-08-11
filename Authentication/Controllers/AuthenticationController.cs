@@ -27,24 +27,21 @@ namespace Authentication.Controllers
         [AllowAnonymous]
         public IActionResult Authenticate([FromBody] AuthenticateRequest request)
         {
-            AuthenticationModel am = new AuthenticationModel(_configuration, _dbContext);
+            AuthenticationModel am = new AuthenticationModel(_logger, _configuration, _dbContext);
 
             var result = am.Authenticate(request);
 
-            if (result != null)
+            if (result.IsSuccess == true)
             {
-                if (result.token != null)
-                {
-                    return Ok(result);
-                }
-                else
-                {
-                    return StatusCode(401, new { message = "Wrong username/password combination." });
-                }
+                return Ok(result);
+            }
+            else if (result.Message.Contains("unexpected"))
+            {
+                return StatusCode(500, result);
             }
             else
             {
-                return StatusCode(500, new { message = "An unexpected error occurred. Please contact administrator." });
+                return StatusCode(401, result);
             }
         }
 
@@ -52,15 +49,20 @@ namespace Authentication.Controllers
         [AllowAnonymous]
         public IActionResult CreateNew([FromBody] CreateNewRequest request)
         {
-            var apiKey = Request.Headers["x-api-key"];
+            if (_configuration["apiKey"] != Request.Headers["x-api-key"]) return StatusCode(403);
 
-            if (_configuration["apiKey"] != apiKey) return StatusCode(403);
-
-            AuthenticationModel am = new AuthenticationModel(_configuration, _dbContext);
+            AuthenticationModel am = new AuthenticationModel(_logger, _configuration, _dbContext);
 
             var result = am.CreateNew(request);
 
-            return Ok(result);
+            if (result.IsSuccess == true)
+            {
+                return Ok(result);
+            }
+            else
+            {
+                return StatusCode(500, result);
+            }
         }
 
         [HttpPost("ChangePassword")]
@@ -72,28 +74,40 @@ namespace Authentication.Controllers
             var tpRes = long.TryParse(uidString, out long userId);
             if (!tpRes) return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
             
-            AuthenticationModel am = new AuthenticationModel(_configuration, _dbContext);
+            AuthenticationModel am = new AuthenticationModel(_logger, _configuration, _dbContext);
 
             request.UserId = userId;
 
             var result = am.ChangePassword(request);
 
-            return Ok(result);
+            if (result.IsSuccess == true)
+            {
+                return Ok(result);
+            }
+            else
+            {
+                return StatusCode(500, result);
+            }
         }
 
         [HttpDelete("DeleteAccount")]
         [AllowAnonymous]
         public IActionResult DeleteAccount([FromBody] DeleteAccountRequest request)
         {
-            var apiKey = Request.Headers["x-api-key"];
+            if (_configuration["apiKey"] != Request.Headers["x-api-key"]) return StatusCode(403);
 
-            if (_configuration["apiKey"] != apiKey) return StatusCode(403);
-
-            AuthenticationModel am = new AuthenticationModel(_configuration, _dbContext);
+            AuthenticationModel am = new AuthenticationModel(_logger, _configuration, _dbContext);
 
             var result = am.DeleteAccount(request);
 
-            return Ok(result);
+            if (result.IsSuccess == true)
+            {
+                return Ok(result);
+            }
+            else
+            {
+                return StatusCode(500, result);
+            }
         }
     }
 }

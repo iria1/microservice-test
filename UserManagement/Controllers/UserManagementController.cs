@@ -33,22 +33,36 @@ namespace UserManagement.Controllers
             var tpRes = long.TryParse(uidString, out long userId);
             if (!tpRes) return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
 
-            UserManagementModel umm = new UserManagementModel(_dbContext, _configuration);
+            UserManagementModel umm = new UserManagementModel(_logger, _dbContext, _configuration);
 
             var result = umm.GetUser(new GetUserRequest { Id = userId });
 
-            return Ok(result);
+            if (result.IsSuccess == true)
+            {
+                return Ok(result);
+            }
+            else
+            {
+                return StatusCode(500, result);
+            }
         }
 
         [HttpPost("CreateUser")]
         [AllowAnonymous]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
         {
-            UserManagementModel umm = new UserManagementModel(_dbContext, _configuration);
+            UserManagementModel umm = new UserManagementModel(_logger, _dbContext, _configuration);
 
             var result = await umm.CreateUser(request);
 
-            return Ok(result);
+            if (result.IsSuccess == true)
+            {
+                return Ok(result);
+            }
+            else
+            {
+                return StatusCode(500, result);
+            }
         }
 
         [HttpPost("ModifyUser")]
@@ -62,11 +76,18 @@ namespace UserManagement.Controllers
 
             request.UserId = userId;
 
-            UserManagementModel umm = new UserManagementModel(_dbContext, _configuration);
+            UserManagementModel umm = new UserManagementModel(_logger, _dbContext, _configuration);
 
             var result = umm.ModifyUser(request);
 
-            return Ok(result);
+            if (result.IsSuccess == true)
+            {
+                return Ok(result);
+            }
+            else
+            {
+                return StatusCode(500, result);
+            }
         }
 
         [HttpDelete("DeleteUser")]
@@ -78,16 +99,18 @@ namespace UserManagement.Controllers
             var tpRes = long.TryParse(uidString, out long userId);
             if (!tpRes) return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
 
-            DeleteUserRequest request = new DeleteUserRequest()
+            UserManagementModel umm = new UserManagementModel(_logger, _dbContext, _configuration);
+
+            var result = await umm.DeleteUser(userId);
+
+            if (result.IsSuccess == true)
             {
-                UserId = userId
-            };
-
-            UserManagementModel umm = new UserManagementModel(_dbContext, _configuration);
-
-            var result = await umm.DeleteUser(request);
-
-            return Ok(result);
+                return Ok(result);
+            }
+            else
+            {
+                return StatusCode(500, result);
+            }
         }
     }
 }
