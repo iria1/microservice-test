@@ -72,8 +72,13 @@ namespace Authentication.Controllers
             string uidString = null;
             if (HttpContext.User.Identity is ClaimsIdentity identity) uidString = identity.FindFirst("userId").Value;
             var tpRes = long.TryParse(uidString, out long userId);
-            if (!tpRes) return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
-            
+            if (!tpRes)
+            {
+                _logger.LogError($"Failed to parse {uidString}.");
+
+                return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
+            }
+
             AuthenticationModel am = new AuthenticationModel(_logger, _configuration, _dbContext);
 
             request.UserId = userId;
@@ -108,6 +113,67 @@ namespace Authentication.Controllers
             {
                 return StatusCode(500, result);
             }
+        }
+
+        [HttpPost("Refresh")]
+        [AllowAnonymous]
+        public IActionResult Refresh([FromBody] RefreshRequest request)
+        {
+            AuthenticationModel am = new AuthenticationModel(_logger, _configuration, _dbContext);
+
+            var result = am.Refresh(request);
+
+            if (result.IsSuccess == true)
+            {
+                return Ok(result);
+            }
+            else if (result.Message.Contains("unexpected"))
+            {
+                return StatusCode(500, result);
+            }
+            else
+            {
+                return StatusCode(401, result);
+            }
+        }
+
+        [HttpPost("Logout")]
+        [Authorize]
+        public IActionResult Logout([FromBody] LogoutRequest request)
+        {
+            string uidString = null;
+            if (HttpContext.User.Identity is ClaimsIdentity identity) uidString = identity.FindFirst("userId").Value;
+            var tpRes = long.TryParse(uidString, out long userId);
+            if (!tpRes)
+            {
+                _logger.LogError($"Failed to parse {uidString}.");
+
+                return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
+            }
+
+            AuthenticationModel am = new AuthenticationModel(_logger, _configuration, _dbContext);
+
+            request.UserId = userId;
+
+            var result = am.Logout(request);
+
+            if (result.IsSuccess == true)
+            {
+                return Ok(result);
+            }
+            else
+            {
+                return StatusCode(500, result);
+            }
+        }
+
+        // This endpoint literally does nothing.
+        // It's only used to check if a user has been authorized.
+        [HttpGet("DoStuff")]
+        [Authorize]
+        public IActionResult DoStuff()
+        {
+            return Ok(new { message = "doing stuff" });
         }
     }
 }

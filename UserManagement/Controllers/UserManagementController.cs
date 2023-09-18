@@ -31,7 +31,12 @@ namespace UserManagement.Controllers
             string uidString = null;
             if (HttpContext.User.Identity is ClaimsIdentity identity) uidString = identity.FindFirst("userId").Value;
             var tpRes = long.TryParse(uidString, out long userId);
-            if (!tpRes) return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
+            if (!tpRes)
+            {
+                _logger.LogError($"Failed to parse {uidString}.");
+
+                return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
+            }
 
             UserManagementModel umm = new UserManagementModel(_logger, _dbContext, _configuration);
 
@@ -72,7 +77,12 @@ namespace UserManagement.Controllers
             string uidString = null;
             if (HttpContext.User.Identity is ClaimsIdentity identity) uidString = identity.FindFirst("userId").Value;
             var tpRes = long.TryParse(uidString, out long userId);
-            if (!tpRes) return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
+            if (!tpRes)
+            {
+                _logger.LogError($"Failed to parse {uidString}.");
+
+                return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
+            }
 
             request.UserId = userId;
 
@@ -97,7 +107,12 @@ namespace UserManagement.Controllers
             string uidString = null;
             if (HttpContext.User.Identity is ClaimsIdentity identity) uidString = identity.FindFirst("userId").Value;
             var tpRes = long.TryParse(uidString, out long userId);
-            if (!tpRes) return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
+            if (!tpRes)
+            {
+                _logger.LogError($"Failed to parse {uidString}.");
+
+                return StatusCode(500, "An unexpected error occurred. Please contact administrator.");
+            }
 
             UserManagementModel umm = new UserManagementModel(_logger, _dbContext, _configuration);
 
