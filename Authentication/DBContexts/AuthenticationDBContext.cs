@@ -27,7 +27,6 @@ namespace Authentication.DBContexts
             modelBuilder.Entity<MasterAuth>().Property(ma => ma.user_id).HasColumnType("bigint(20)").IsRequired();
             modelBuilder.Entity<MasterAuth>().Property(ma => ma.username).HasColumnType("varchar(100)").IsRequired();
             modelBuilder.Entity<MasterAuth>().Property(ma => ma.password).HasColumnType("varchar(64)").IsRequired();
-            modelBuilder.Entity<MasterAuth>().Property(ma => ma.pw_salt).HasColumnType("varchar(36)").IsRequired();
             modelBuilder.Entity<MasterAuth>().Property(ma => ma.created_by).HasColumnType("varchar(100)").HasDefaultValue("system").IsRequired();
             modelBuilder.Entity<MasterAuth>().Property(ma => ma.created_date).HasColumnType("datetime").HasDefaultValue(DateTime.Now).IsRequired();
             modelBuilder.Entity<MasterAuth>().Property(ma => ma.modified_by).HasColumnType("varchar(100)").IsRequired(false);
@@ -58,8 +57,6 @@ namespace Authentication.DBContexts
         public string username { get; set; }
 
         public string password { get; set; }
-
-        public string pw_salt { get; set; }
 
         public string created_by { get; set; }
 

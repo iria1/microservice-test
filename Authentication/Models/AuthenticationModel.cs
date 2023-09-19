@@ -4,13 +4,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
-using System.Collections.Generic;
+using BC = BCrypt.Net.BCrypt;
 
 namespace Authentication.Models
 {
@@ -31,21 +31,12 @@ namespace Authentication.Models
         {
             try
             {
-                var pwSalt = _dbContext.MasterAuth
-                    .Where(a => a.username == request.Username)
-                    .Select(a => a.pw_salt)
-                    .FirstOrDefault();
+                MasterAuth ma = _dbContext.MasterAuth.Where(a => a.username == request.Username).FirstOrDefault();
+                if (ma == null) return new CommonResponse<AuthenticateResponse>(null, "Wrong username/password combination.", false);
 
-                if (pwSalt == null) return new CommonResponse<AuthenticateResponse>(null, "Wrong username/password combination.", false);
+                var hashedPw = ma.password;
 
-                var hashedPw = ComputeSha256Hash(request.Password + pwSalt);
-
-                MasterAuth ma = _dbContext.MasterAuth
-                    .Where(a => a.username == request.Username)
-                    .Where(b => b.password == hashedPw)
-                    .FirstOrDefault();
-
-                if (ma != null)
+                if (BC.EnhancedVerify(request.Password, hashedPw))
                 {
                     string authJwt = GenerateToken(ma.user_id.ToString(), DateTime.Now.AddMinutes(5), _configuration["Jwt:AuthKey"]);
                     string refreshJwt = GenerateToken(ma.user_id.ToString(), DateTime.Now.AddDays(30), _configuration["Jwt:RefrKey"]);
@@ -81,8 +72,7 @@ namespace Authentication.Models
         {
             try
             {
-                Guid g = Guid.NewGuid();
-                var hashedPW = ComputeSha256Hash(request.Password + g.ToString());
+                string hashedPW = BC.EnhancedHashPassword(request.Password, 13);
 
                 _dbContext.MasterAuth
                     .Add(new MasterAuth
@@ -90,7 +80,6 @@ namespace Authentication.Models
                         user_id = request.UserId,
                         username = request.Username,
                         password = hashedPW,
-                        pw_salt = g.ToString(),
                         created_by = request.UserId.ToString()
                     });
 
@@ -111,31 +100,19 @@ namespace Authentication.Models
             {
                 // confirm that this user owns the account
 
-                var pwSalt = _dbContext.MasterAuth
-                    .Where(a => a.user_id == request.UserId)
-                    .Select(a => a.pw_salt)
-                    .FirstOrDefault();
+                MasterAuth ma = _dbContext.MasterAuth.Where(a => a.user_id == request.UserId).FirstOrDefault();
+                if (ma == null) return new CommonResponse<object>(null, "UserId not found. Failed to update password.", false);
 
-                if (pwSalt == null) return new CommonResponse<object>(null, "UserId not found. Failed to update password.", false);
-
-                var hashedPw = ComputeSha256Hash(request.OldPassword + pwSalt);
-
-                MasterAuth foo = _dbContext.MasterAuth
-                    .Where(a => a.user_id == request.UserId)
-                    .Where(b => b.password == hashedPw)
-                    .FirstOrDefault();
-
-                if (foo == null) return new CommonResponse<object>(null, "Incorrect password. Failed to update password.", false);
+                var hashedPw = ma.password;
+                if (!BC.EnhancedVerify(request.OldPassword, hashedPw)) return new CommonResponse<object>(null, "Incorrect password. Failed to update password.", false);
 
                 // change the password to a new one
 
-                Guid g = Guid.NewGuid();
-                var newHashedPw = ComputeSha256Hash(request.NewPassword + g.ToString());
+                string newHashedPw = BC.EnhancedHashPassword(request.NewPassword, 13);
 
-                foo.password = newHashedPw;
-                foo.pw_salt = g.ToString();
-                foo.modified_by = request.UserId.ToString();
-                foo.modified_date = DateTime.Now;
+                ma.password = newHashedPw;
+                ma.modified_by = request.UserId.ToString();
+                ma.modified_date = DateTime.Now;
                 _dbContext.SaveChanges();
 
                 return new CommonResponse<object>(null, null, true);
@@ -285,22 +262,6 @@ namespace Authentication.Models
             var token = new JwtSecurityToken(_configuration["Jwt:Issuer"], _configuration["Jwt:Issuer"], claims, expires: duration, signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        private string ComputeSha256Hash(string rawData)
-        {
-            // Create a SHA256
-            using SHA256 sha256Hash = SHA256.Create();
-            // ComputeHash - returns byte array
-            byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(rawData));
-
-            // Convert byte array to a string
-            StringBuilder builder = new StringBuilder();
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                builder.Append(bytes[i].ToString("x2"));
-            }
-            return builder.ToString();
         }
 
         private bool ValidateToken(string authToken)
