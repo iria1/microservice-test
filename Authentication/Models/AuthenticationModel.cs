@@ -135,7 +135,7 @@ namespace Authentication.Models
                     .Where(a => a.user_id == userId)
                     .FirstOrDefault();
 
-                if (acctToBeDelete == null) return null;
+                if (acctToBeDelete == null) return new CommonResponse<object>(null, "Account not found.", false); ;
 
                 _dbContext.MasterAuth.Remove(acctToBeDelete);
 
